@@ -1,7 +1,8 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+*.zip
 .venv/
 __pycache__/
 *.pyc
-.env
-data/
-.pytest_cache/
-*.zip

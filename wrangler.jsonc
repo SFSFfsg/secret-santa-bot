@@ -1,0 +1,35 @@
+// Настройки Cloudflare для «Тайного Санты NF Group».
+// Секреты (BOT_TOKEN, ENCRYPTION_KEY) здесь НЕ хранятся — они вводятся в панели Cloudflare.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "secret-santa-nf",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Приложение (страницы, шрифты, картинки) раздаётся бесплатно и без лимита.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/tg/*", "/setup/status", "/setup/connect", "/health"]
+  },
+
+  // База данных D1. Номер базы подставляется автоматически при публикации (scripts/ensure-d1.mjs).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "secret-santa-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Будильник: раз в минуту — напоминания, автожеребьёвка, очередь уведомлений.
+  "triggers": { "crons": ["* * * * *"] },
+
+  // Не стирать переменные, заданные в панели Cloudflare (например, ADMIN_IDS).
+  "keep_vars": true,
+
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}
