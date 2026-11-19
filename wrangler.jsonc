@@ -5,7 +5,6 @@
   "name": "secret-santa-nf",
   "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
-  "compatibility_flags": ["nodejs_compat"],
 
   // Приложение (страницы, шрифты, картинки) раздаётся бесплатно и без лимита.
   "assets": {

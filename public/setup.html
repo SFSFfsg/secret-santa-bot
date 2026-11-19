@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройка · Тайный Санта NF Group</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main id="app">
+  <header class="topbar"><span class="wordmark">NF GROUP</span><span class="label">Настройка</span></header>
+  <div class="eyebrow">Служебная страница</div>
+  <h1 class="h-thin sm">Настройка Тайного Санты</h1>
+  <p class="small muted">Здесь видно, всё ли подключено. Секреты на этой странице не показываются.</p>
+
+  <div class="h2">1 · Состояние</div>
+  <div class="card" id="status"><div class="muted">Проверяем…</div></div>
+  <button class="btn ghost" id="recheck">Проверить ещё раз</button>
+
+  <div class="h2">2 · Ключ шифрования</div>
+  <div class="card">
+    <p class="small">Нужен один раз. Ключ создаётся <b>прямо в вашем браузере</b> и никуда не отправляется.</p>
+    <ol class="small">
+      <li>Нажмите «Создать ключ».</li>
+      <li>Скопируйте его и сохраните в менеджер паролей — без него резервную копию пар не восстановить.</li>
+      <li>Вставьте его в Cloudflare как секрет <code>ENCRYPTION_KEY</code> (инструкция — в DEPLOY.md).</li>
+    </ol>
+    <button class="btn" id="gen">Создать ключ</button>
+    <div id="keybox" style="display:none;margin-top:12px">
+      <input class="input" id="key" readonly>
+      <button class="btn ghost" id="copy">Скопировать ключ</button>
+      <p class="hint">⚠️ Если ключ уже задан и в игре прошла жеребьёвка — не меняйте его: старые пары станут нечитаемыми.</p>
+    </div>
+  </div>
+
+  <div class="h2">3 · Подключить бота</div>
+  <div class="card">
+    <p class="small">После того как токен бота и ключ добавлены в Cloudflare, нажмите кнопку: бот начнёт получать сообщения, у него появится кнопка «Открыть».</p>
+    <button class="btn red" id="connect">Подключить бота</button>
+    <div id="connect-result" class="small" style="margin-top:10px"></div>
+  </div>
+</main>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const line = (ok, title, hint) => `<div class="item"><span>${ok ? "✅" : "❌"}</span><span class="grow">${title}${hint ? `<div class="hint">${hint}</div>` : ""}</span></div>`;
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  async function check() {
+    $("#status").innerHTML = '<div class="muted">Проверяем…</div>';
+    try {
+      const s = await (await fetch("/setup/status")).json();
+      const rows = [
+        line(true, "Приложение опубликовано", esc(s.app_url)),
+        line(s.database?.ok, "База данных D1", s.database?.ok ? `Игр: ${s.database.games}` : esc(s.database?.hint)),
+        line(s.encryption_key?.ok, "Ключ шифрования ENCRYPTION_KEY", s.encryption_key?.ok ? "" : esc(s.encryption_key?.hint)),
+        line(s.bot?.ok, "Токен бота BOT_TOKEN", s.bot?.ok ? `Бот найден: @${esc(s.bot.username)}` : esc(s.bot?.hint)),
+      ];
+      if (s.webhook) rows.push(line(s.webhook.connected_to_this_app, "Бот подключён к приложению", s.webhook.connected_to_this_app ? (s.webhook.last_error ? `Последняя ошибка Telegram: ${esc(s.webhook.last_error)}` : "") : "Нажмите «Подключить бота» ниже"));
+      $("#status").innerHTML = `<div class="list">${rows.join("")}</div>`;
+    } catch {
+      $("#status").innerHTML = line(false, "Не удалось получить состояние", "Обновите страницу через минуту");
+    }
+  }
+  $("#recheck").onclick = check;
+  $("#gen").onclick = () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    $("#key").value = btoa(String.fromCharCode(...bytes));
+    $("#keybox").style.display = "block";
+  };
+  $("#copy").onclick = async () => {
+    try { await navigator.clipboard.writeText($("#key").value); $("#copy").textContent = "Скопировано ✓"; }
+    catch { $("#key").select(); $("#copy").textContent = "Выделено — нажмите Ctrl+C"; }
+  };
+  $("#connect").onclick = async () => {
+    $("#connect").disabled = true;
+    try {
+      const r = await (await fetch("/setup/connect", { method: "POST" })).json();
+      $("#connect-result").innerHTML = r.ok
+        ? `✅ Готово! Бот <b>@${esc(r.bot_username)}</b> подключён. Откройте его в Telegram и нажмите «Старт».`
+        : `❌ ${esc(r.error || "Не получилось, попробуйте ещё раз")}`;
+      check();
+    } catch {
+      $("#connect-result").textContent = "❌ Нет связи, попробуйте ещё раз";
+    }
+    $("#connect").disabled = false;
+  };
+  check();
+</script>
+</body>
+</html>
